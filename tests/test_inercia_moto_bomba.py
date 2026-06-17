@@ -190,6 +190,76 @@ class TestConversaoGD2:
             InerciaMotoBomba.inercia_para_gd2(-0.1)
 
 
+class TestExemploPDFCilindroMacico:
+    """
+    Validação passo a passo do exemplo numérico do PDF.
+
+    Castro, M.A.H. (UFC) — seção 5.1.1, página 5:
+      "Seja um corpo de peso 60 N. Determine o momento de impulsão e o
+       momento de inércia, considerando um cilindro maciço de 10 cm de diâmetro."
+
+    Resolução do PDF:
+      D² = d²/2 = (0,10)²/2 = 0,005 m²
+      GD² = G·D² = 60 N × 0,005 m² = 0,3 N·m²
+      I = GD²/(4·g) = 0,3/(4·9,81) ≈ 7,64 × 10⁻³ kg·m²
+    """
+
+    G_NEWTON = 60.0        # peso em N
+    D_METRO = 0.10         # diâmetro em m
+    G_GRAVIDADE = 9.81     # m/s²
+
+    @property
+    def massa_kg(self):
+        return self.G_NEWTON / self.G_GRAVIDADE
+
+    def test_inercia_igual_ao_pdf(self):
+        res = InerciaMotoBomba.cilindro_macico(self.massa_kg, self.D_METRO)
+        # PDF: I ≈ 7,64 × 10⁻³ kg·m²
+        assert math.isclose(res.inercia_total_kg_m2, 7.645e-3, rel_tol=1e-3)
+
+    def test_d2_de_giracao(self):
+        # D² = d²/2 = (0,10)²/2 = 0,005 m²  (Eq. 5.5)
+        D2_esperado = self.D_METRO**2 / 2
+        assert math.isclose(D2_esperado, 0.005, rel_tol=1e-9)
+
+    def test_gd2_em_kg_m2(self):
+        # GD² (em kg·m², com G = massa em kgf) = m · D²
+        res = InerciaMotoBomba.cilindro_macico(self.massa_kg, self.D_METRO)
+        gd2_esperado = self.massa_kg * (self.D_METRO**2 / 2)
+        assert math.isclose(res.momento_impulsao_gd2, gd2_esperado, rel_tol=1e-9)
+
+    def test_gd2_em_N_m2(self):
+        # GD² (em N·m², com G em N) = G_N · D²  = 60 × 0,005 = 0,3 N·m²  (PDF)
+        gd2_newton = self.G_NEWTON * (self.D_METRO**2 / 2)
+        assert math.isclose(gd2_newton, 0.3, rel_tol=1e-9)
+
+    def test_conversao_N_m2_para_kg_m2(self):
+        # 0,3 N·m² ÷ 9,81 m/s² = 0,03058 kg·m²
+        gd2_N = 0.3
+        gd2_kg = gd2_N / self.G_GRAVIDADE
+        res = InerciaMotoBomba.cilindro_macico(self.massa_kg, self.D_METRO)
+        assert math.isclose(res.momento_impulsao_gd2, gd2_kg, rel_tol=1e-4)
+
+    def test_i_via_formula_gd2_dividido_4g(self):
+        # I = GD²(N·m²) / (4·g)  — Eq. 5.3 do PDF
+        gd2_N = self.G_NEWTON * (self.D_METRO**2 / 2)
+        i_esperado = gd2_N / (4 * self.G_GRAVIDADE)
+        res = InerciaMotoBomba.cilindro_macico(self.massa_kg, self.D_METRO)
+        assert math.isclose(res.inercia_total_kg_m2, i_esperado, rel_tol=1e-4)
+
+    def test_i_via_formula_massa(self):
+        # I = m·r²/2  (equivalente direto)
+        r = self.D_METRO / 2
+        i_esperado = self.massa_kg * r**2 / 2
+        res = InerciaMotoBomba.cilindro_macico(self.massa_kg, self.D_METRO)
+        assert math.isclose(res.inercia_total_kg_m2, i_esperado, rel_tol=1e-9)
+
+    def test_gd2_igual_4_vezes_inercia(self):
+        # Relação fundamental: GD²(kg·m²) = 4 · I  (Eq. 5.4)
+        res = InerciaMotoBomba.cilindro_macico(self.massa_kg, self.D_METRO)
+        assert math.isclose(res.momento_impulsao_gd2, 4 * res.inercia_total_kg_m2, rel_tol=1e-9)
+
+
 class TestComparacaoCatalogoSulzer:
     """
     Validação dos métodos empíricos contra o catálogo da Sulzer XFP150G CB1 60HZ.
