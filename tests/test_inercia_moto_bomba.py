@@ -188,3 +188,53 @@ class TestConversaoGD2:
     def test_inercia_invalida(self):
         with pytest.raises(ValueError):
             InerciaMotoBomba.inercia_para_gd2(-0.1)
+
+
+class TestComparacaoCatalogoSulzer:
+    """
+    Validação dos métodos empíricos contra o catálogo da Sulzer XFP150G CB1 60HZ.
+
+    Dados do catálogo (Figura 5.3 — Castro, M.A.H., UFC):
+      - Potência consumida : 19,7 kW
+      - Power input        : 21,0 kW
+      - Rotação            : ~3500 rpm  (motor 2 polos / 60 Hz)
+      - I catálogo         : 0,0944 kg·m²  (valor real do fabricante)
+
+    Os testes verificam que Thorley-Faithfull subestima I entre 15% e 25%
+    para esta bomba submersível — erro admissível para estimativa preliminar,
+    mas confirma que o valor de catálogo deve ser sempre preferido.
+    """
+
+    I_CATALOGO = 0.0944   # kg·m²  — Sulzer XFP150G CB1 60HZ
+    ROT_RPM = 3500.0
+    P_CONSUMIDA_KW = 19.7
+    P_INPUT_KW = 21.0
+
+    def test_thorley_com_potencia_consumida_subestima_ate_25_porcento(self):
+        res = InerciaMotoBomba.thorley_faithfull(self.P_CONSUMIDA_KW, self.ROT_RPM)
+        erro_relativo = (res.inercia_total_kg_m2 - self.I_CATALOGO) / self.I_CATALOGO
+        # Deve subestimar (negativo) e não errar mais que 25 %
+        assert erro_relativo < 0, "Thorley-Faithfull deve subestimar I para esta bomba"
+        assert erro_relativo > -0.25, f"Erro de {erro_relativo:.1%} excede 25 % de tolerância"
+
+    def test_thorley_com_power_input_subestima_ate_20_porcento(self):
+        res = InerciaMotoBomba.thorley_faithfull(self.P_INPUT_KW, self.ROT_RPM)
+        erro_relativo = (res.inercia_total_kg_m2 - self.I_CATALOGO) / self.I_CATALOGO
+        assert erro_relativo < 0, "Thorley-Faithfull deve subestimar I para esta bomba"
+        assert erro_relativo > -0.20, f"Erro de {erro_relativo:.1%} excede 20 % de tolerância"
+
+    def test_power_input_mais_proximo_que_potencia_consumida(self):
+        res_cons = InerciaMotoBomba.thorley_faithfull(self.P_CONSUMIDA_KW, self.ROT_RPM)
+        res_input = InerciaMotoBomba.thorley_faithfull(self.P_INPUT_KW, self.ROT_RPM)
+        erro_cons = abs(res_cons.inercia_total_kg_m2 - self.I_CATALOGO)
+        erro_input = abs(res_input.inercia_total_kg_m2 - self.I_CATALOGO)
+        assert erro_input < erro_cons, "Power input deve dar resultado mais próximo do catálogo"
+
+    def test_energia_cinetica_real_com_catalogo(self):
+        ec = InerciaMotoBomba.energia_cinetica(self.I_CATALOGO, self.ROT_RPM)
+        # Ec = 0,5 * 0,0944 * (3500 * 2π/60)² ≈ 6341 J
+        assert math.isclose(ec, 6341.0, rel_tol=0.01)
+
+    def test_gd2_equivalente_do_catalogo(self):
+        gd2 = InerciaMotoBomba.inercia_para_gd2(self.I_CATALOGO)
+        assert math.isclose(gd2, 0.3776, rel_tol=1e-4)
