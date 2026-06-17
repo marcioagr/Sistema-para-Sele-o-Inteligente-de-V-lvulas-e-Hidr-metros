@@ -97,12 +97,37 @@ def calcular_cilindro_oco():
     exibir_resultado(resultado)
 
 
+def confirmar_nao_multiestágio() -> bool:
+    """Retorna True se pode prosseguir (bomba de estágio único)."""
+    print()
+    resposta = input("  A bomba é multiestágio? (s/n): ").strip().lower()
+    if resposta in ("s", "sim", "y", "yes"):
+        print()
+        print("  ╔══════════════════════════════════════════════════════╗")
+        print("  ║  BLOQUEADO — BOMBA MULTIESTÁGIO                     ║")
+        print("  ║                                                      ║")
+        print("  ║  As fórmulas empíricas de Koelle-Betâmio e          ║")
+        print("  ║  Thorley-Faithfull NÃO devem ser usadas para        ║")
+        print("  ║  bombas multiestágio — o erro é considerável.       ║")
+        print("  ║                                                      ║")
+        print("  ║  Ref.: Castro, M.A.H. (UFC) — seção 5.1.1           ║")
+        print("  ║                                                      ║")
+        print("  ║  Procedimento correto:                               ║")
+        print("  ║    Use o GD² do catálogo do fabricante e converta   ║")
+        print("  ║    pela opção [5]  →  I = GD² / 4                   ║")
+        print("  ╚══════════════════════════════════════════════════════╝")
+        return False
+    return True
+
+
 def calcular_koelle_betamio():
     print()
     print("  >> Koelle e Betâmio (1992) — Eq. 5.8")
     print("     I = 288 · (P / N0)^1,435")
     print("     P em HP, N0 em rpm")
     print("     ATENÇÃO: não aplicar em bombas multiestágio.")
+    if not confirmar_nao_multiestágio():
+        return
     print()
     pot_hp = ler_float("Potência da bomba (HP)")
     rot = ler_float("Rotação em estado permanente (rpm)")
@@ -117,6 +142,8 @@ def calcular_thorley_faithfull():
     print("     I2 = 0,0043 · [P/(N0/1000)]^1,48  (motor)")
     print("     I  = I1 + I2      P em kW, N0 em rpm")
     print("     ATENÇÃO: não aplicar em bombas multiestágio.")
+    if not confirmar_nao_multiestágio():
+        return
     print()
     pot_kw = ler_float("Potência do conjunto (kW)")
     rot = ler_float("Rotação em estado permanente (rpm)")
